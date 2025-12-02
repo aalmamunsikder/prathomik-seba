@@ -3,24 +3,23 @@ import React, { useState, useRef, useEffect } from 'react';
 import { School, Student, CertificateRequest } from '../types';
 import { generateStudentRemarks } from '../services/geminiService';
 import { MockService } from '../services/mockData';
-import { Printer, Sparkles, Send, Palette, Upload, History, FilePlus, Download, QrCode } from 'lucide-react';
+import { Printer, Send, Upload, History, FilePlus, RefreshCw } from 'lucide-react';
 
 interface Props {
   userSchool: School | undefined;
 }
 
-type TemplateTheme = 'classic' | 'modern' | 'ornamental';
 type ViewMode = 'create' | 'history';
 
 export const CertificateGen: React.FC<Props> = ({ userSchool }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('create');
-  const [formData, setFormData] = useState<Partial<Student>>({
-    name: '', fatherName: '', motherName: '', roll: '', class: '', address: '', dob: '', gpa: 0, attendance: 0
+  const [formData, setFormData] = useState<Partial<Student> & { postOffice?: string; examYear?: string; serialNo?: string; dobWords?: string }>({
+    name: '', fatherName: '', motherName: '', roll: '', class: '', address: '', dob: '', gpa: 0, attendance: 0,
+    postOffice: '', examYear: new Date().getFullYear().toString(), serialNo: '', dobWords: ''
   });
   const [remarks, setRemarks] = useState('');
   const [loadingAi, setLoadingAi] = useState(false);
   const [traits, setTraits] = useState('মেধাবী, নিয়মিত');
-  const [theme, setTheme] = useState<TemplateTheme>('classic');
   const [history, setHistory] = useState<CertificateRequest[]>([]);
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   
@@ -61,29 +60,14 @@ export const CertificateGen: React.FC<Props> = ({ userSchool }) => {
       setViewMode('history');
   };
 
-  const handleBulkUpload = async () => {
-      if(!bulkFile) return alert("ফাইল নির্বাচন করুন");
-      // Simulate bulk processing
-      alert(`৫টি প্রত্যয়নপত্র প্রসেস করা হয়েছে! (Demo: ${bulkFile.name})`);
-      setBulkFile(null);
-  }
-
   const handlePrint = () => {
     window.print();
   };
 
   if (!userSchool) return <div className="text-center p-10 text-red-500 font-bold">স্কুলের তথ্য পাওয়া যায়নি। অনুগ্রহ করে লগইন করুন।</div>;
 
-  const getThemeClasses = () => {
-    switch(theme) {
-        case 'modern': return "border-l-8 border-teal-600";
-        case 'ornamental': return "border-8 border-double border-teal-800";
-        default: return "border-4 border-teal-800";
-    }
-  };
-
-  // Generate QR Code URL
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=VERIFY-${userSchool.eiin}-${formData.roll || '000'}`;
+  // Bengali Number Converter
+  const toBn = (en: any) => ("" + en).replace(/[0-9]/g, (d) => "০১২৩৪৫৬৭৮৯"[parseInt(d)]);
 
   return (
     <div className="space-y-6">
@@ -139,265 +123,246 @@ export const CertificateGen: React.FC<Props> = ({ userSchool }) => {
         {viewMode === 'create' && (
             <div className="grid lg:grid-cols-12 gap-8 print:block">
             {/* Input Form Section - Hidden on Print */}
-            <div className="lg:col-span-5 space-y-6 print:hidden">
-                {/* Manual Form */}
-                <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 h-fit space-y-5">
+            <div className="lg:col-span-4 space-y-6 print:hidden">
+                <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 h-fit space-y-4">
                     <div className="flex justify-between items-center border-b pb-3">
-                    <h3 className="text-xl font-bold text-gray-800">শিক্ষার্থীর তথ্য পূরণ করুন</h3>
-                    <div className="flex gap-2 text-sm text-gray-500 bg-gray-100 p-1 rounded-lg">
-                        <button onClick={() => setTheme('classic')} className={`p-1 px-2 rounded ${theme === 'classic' ? 'bg-white shadow text-teal-700' : ''}`}><Palette size={14}/></button>
-                        <button onClick={() => setTheme('modern')} className={`p-1 px-2 rounded ${theme === 'modern' ? 'bg-white shadow text-teal-700' : ''}`}>Modern</button>
-                        <button onClick={() => setTheme('ornamental')} className={`p-1 px-2 rounded ${theme === 'ornamental' ? 'bg-white shadow text-teal-700' : ''}`}>Royal</button>
-                    </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-2">
-                            <label className="block text-sm font-bold text-gray-700 mb-1">শিক্ষার্থীর নাম</label>
-                            <input 
-                                type="text" 
-                                className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white text-gray-900 font-medium"
-                                value={formData.name}
-                                onChange={e => setFormData({...formData, name: e.target.value})}
-                                placeholder="সম্পূর্ণ নাম"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">জন্ম তারিখ</label>
-                            <input 
-                                type="date" 
-                                className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white text-gray-900"
-                                value={formData.dob}
-                                onChange={e => setFormData({...formData, dob: e.target.value})}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">রোল নং</label>
-                            <input 
-                                type="text" 
-                                className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white text-gray-900"
-                                value={formData.roll}
-                                onChange={e => setFormData({...formData, roll: e.target.value})}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">পিতার নাম</label>
-                            <input 
-                                type="text" 
-                                className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white text-gray-900"
-                                value={formData.fatherName}
-                                onChange={e => setFormData({...formData, fatherName: e.target.value})}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">মাতার নাম</label>
-                            <input 
-                                type="text" 
-                                className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white text-gray-900"
-                                value={formData.motherName}
-                                onChange={e => setFormData({...formData, motherName: e.target.value})}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">শ্রেণি</label>
-                            <select 
-                                className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white text-gray-900"
-                                value={formData.class}
-                                onChange={e => setFormData({...formData, class: e.target.value})}
-                            >
-                                <option value="">নির্বাচন করুন</option>
-                                <option value="প্রথম">প্রথম</option>
-                                <option value="দ্বিতীয়">দ্বিতীয়</option>
-                                <option value="তৃতীয়">তৃতীয়</option>
-                                <option value="চতুর্থ">চতুর্থ</option>
-                                <option value="পঞ্চম">পঞ্চম</option>
-                            </select>
-                        </div>
-                        
-                        <div className="col-span-2">
-                            <label className="block text-sm font-bold text-gray-700 mb-1">ঠিকানা (গ্রাম/মহল্লা)</label>
-                            <input 
-                                type="text" 
-                                className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white text-gray-900"
-                                value={formData.address}
-                                onChange={e => setFormData({...formData, address: e.target.value})}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 mt-4">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Sparkles className="text-indigo-600" size={18} />
-                            <h4 className="font-bold text-sm text-indigo-900">AI মন্তব্য জেনারেটর</h4>
-                        </div>
-                        <div className="grid grid-cols-3 gap-3 mb-3">
-                            <input 
-                                type="number" placeholder="GPA" 
-                                className="p-2 border rounded text-sm bg-white text-gray-900"
-                                onChange={e => setFormData({...formData, gpa: parseFloat(e.target.value)})}
-                            />
-                            <input 
-                                type="number" placeholder="উপস্থিতি %" 
-                                className="p-2 border rounded text-sm bg-white text-gray-900"
-                                onChange={e => setFormData({...formData, attendance: parseFloat(e.target.value)})}
-                            />
-                            <input 
-                                type="text" placeholder="বৈশিষ্ট্য (যেমন: শান্ত)" 
-                                className="p-2 border rounded text-sm bg-white text-gray-900"
-                                value={traits}
-                                onChange={e => setTraits(e.target.value)}
-                            />
-                        </div>
-                        <button 
-                            onClick={handleAiGenerate}
-                            disabled={loadingAi}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all font-medium shadow-sm"
-                        >
-                            {loadingAi ? 'জেনারেট হচ্ছে...' : 'স্বয়ংক্রিয় মন্তব্য লিখুন'}
+                        <h3 className="text-lg font-bold text-gray-800">তথ্য পূরণ করুন</h3>
+                        <button onClick={() => setFormData({name: 'আব্দুর রহিম', fatherName: 'করিম উদ্দিন', motherName: 'রহিমা বেগম', roll: '১০১', class: '৫ম', address: 'রূপনগর', postOffice: 'মিরপুর', examYear: '২০২৪', dob: '2014-05-15', dobWords: 'পনেরই মে দুই হাজার চৌদ্দ', serialNo: '২০২৪/১০১'})} className="text-xs text-teal-600 hover:underline flex items-center gap-1">
+                             <RefreshCw size={12} /> অটো ফিল (Demo)
                         </button>
                     </div>
+                    
+                    <div className="space-y-3">
+                         <input type="text" placeholder="ক্রমিক নং (যেমন: ২০২৪/০০১)" className="w-full p-2 border rounded bg-white text-gray-900"
+                                value={formData.serialNo} onChange={e => setFormData({...formData, serialNo: e.target.value})} />
+                        
+                        <input type="text" placeholder="শিক্ষার্থীর নাম" className="w-full p-2 border rounded bg-white text-gray-900"
+                                value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                             <input type="text" placeholder="পিতার নাম" className="w-full p-2 border rounded bg-white text-gray-900"
+                                value={formData.fatherName} onChange={e => setFormData({...formData, fatherName: e.target.value})} />
+                             <input type="text" placeholder="মাতার নাম" className="w-full p-2 border rounded bg-white text-gray-900"
+                                value={formData.motherName} onChange={e => setFormData({...formData, motherName: e.target.value})} />
+                        </div>
 
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">প্রধান শিক্ষকের মন্তব্য</label>
-                        <textarea 
-                            className="w-full p-3 border rounded-lg h-24 focus:ring-2 focus:ring-teal-500 outline-none bg-white text-gray-900"
-                            value={remarks}
-                            onChange={e => setRemarks(e.target.value)}
-                            placeholder="ম্যানুয়ালি লিখুন অথবা AI ব্যবহার করুন..."
-                        />
+                        <div className="grid grid-cols-2 gap-2">
+                             <input type="text" placeholder="গ্রাম" className="w-full p-2 border rounded bg-white text-gray-900"
+                                value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
+                             <input type="text" placeholder="ডাকঘর" className="w-full p-2 border rounded bg-white text-gray-900"
+                                value={formData.postOffice} onChange={e => setFormData({...formData, postOffice: e.target.value})} />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                            <input type="text" placeholder="রোল" className="w-full p-2 border rounded bg-white text-gray-900"
+                                value={formData.roll} onChange={e => setFormData({...formData, roll: e.target.value})} />
+                            <select className="w-full p-2 border rounded bg-white text-gray-900"
+                                value={formData.class} onChange={e => setFormData({...formData, class: e.target.value})}>
+                                <option value="">শ্রেণি</option>
+                                <option value="১ম">১ম</option>
+                                <option value="২য়">২য়</option>
+                                <option value="৩য়">৩য়</option>
+                                <option value="৪র্থ">৪র্থ</option>
+                                <option value="৫ম">৫ম</option>
+                            </select>
+                             <input type="text" placeholder="পরীক্ষার সাল" className="w-full p-2 border rounded bg-white text-gray-900"
+                                value={formData.examYear} onChange={e => setFormData({...formData, examYear: e.target.value})} />
+                        </div>
+
+                        <label className="block text-xs font-bold text-gray-500 mt-2">জন্ম তারিখ</label>
+                        <div className="grid grid-cols-2 gap-2">
+                             <input type="date" className="w-full p-2 border rounded bg-white text-gray-900"
+                                value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} />
+                             <input type="text" placeholder="কথায় (জন্ম তারিখ)" className="w-full p-2 border rounded bg-white text-gray-900"
+                                value={formData.dobWords} onChange={e => setFormData({...formData, dobWords: e.target.value})} />
+                        </div>
+
+                        {/* AI Section */}
+                        <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 mt-2">
+                            <div className="flex gap-2 mb-2">
+                                <input type="number" placeholder="GPA" className="w-1/2 p-1 text-sm border rounded bg-white text-gray-900" 
+                                    onChange={e => setFormData({...formData, gpa: parseFloat(e.target.value)})} />
+                                <input type="text" placeholder="বৈশিষ্ট্য (যেমন: শান্ত, ভদ্র)" className="w-1/2 p-1 text-sm border rounded bg-white text-gray-900" value={traits} onChange={e => setTraits(e.target.value)} />
+                            </div>
+                            <button onClick={handleAiGenerate} disabled={loadingAi} className="w-full bg-indigo-600 text-white text-xs py-2 rounded font-bold">
+                                {loadingAi ? 'AI লিখছে...' : 'AI মন্তব্য লিখুন'}
+                            </button>
+                        </div>
+                         <textarea className="w-full p-2 border rounded h-20 bg-white text-gray-900 text-sm" placeholder="মন্তব্য" value={remarks} onChange={e => setRemarks(e.target.value)} />
                     </div>
                 </div>
-                
+
                 {/* Bulk Upload Widget */}
                 <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
                     <div className="flex items-center gap-2 mb-4 text-teal-800">
                         <Upload size={20} />
-                        <h3 className="font-bold">বাল্ক আপলোড (Excel/CSV)</h3>
+                        <h3 className="font-bold">বাল্ক আপলোড (Excel)</h3>
                     </div>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors">
-                        <input 
-                            type="file" 
-                            accept=".csv, .xlsx" 
-                            className="hidden" 
-                            id="bulk-upload"
-                            onChange={(e) => setBulkFile(e.target.files ? e.target.files[0] : null)}
-                        />
-                        <label htmlFor="bulk-upload" className="cursor-pointer">
-                            <div className="flex flex-col items-center gap-2">
-                                <Download className="text-gray-400" />
-                                <span className="text-sm font-medium text-gray-600">{bulkFile ? bulkFile.name : 'ফাইল নির্বাচন করুন'}</span>
-                            </div>
-                        </label>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:bg-gray-50">
+                        <span className="text-xs text-gray-500">ফাইল ড্রপ করুন</span>
                     </div>
-                    {bulkFile && (
-                        <button 
-                            onClick={handleBulkUpload}
-                            className="w-full mt-3 bg-teal-600 text-white py-2 rounded-lg font-bold text-sm"
-                        >
-                            আপলোড করুন
-                        </button>
-                    )}
                 </div>
             </div>
 
-            {/* Preview & Actions */}
-            <div className="lg:col-span-7 flex flex-col space-y-4 print:w-full print:block">
-                <div className="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm border border-gray-200 print:hidden">
-                    <h4 className="font-bold text-gray-700 ml-2">প্রিভিউ মোড</h4>
-                    <div className="flex gap-2">
-                        <button onClick={handleSave} className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg shadow flex items-center gap-2 font-medium">
-                            <Send size={18} /> সেভ
-                        </button>
-                        <button onClick={handlePrint} className="bg-teal-700 hover:bg-teal-800 text-white px-5 py-2 rounded-lg shadow flex items-center gap-2 font-medium">
-                            <Printer size={18} /> প্রিন্ট
-                        </button>
-                    </div>
+            {/* Preview Section - The Certificate Paper */}
+            <div className="lg:col-span-8 print:w-full print:col-span-12">
+                <div className="flex justify-end gap-3 mb-4 print:hidden">
+                    <button onClick={handleSave} className="bg-green-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 font-bold text-sm">
+                        <Send size={16} /> সেভ
+                    </button>
+                    <button onClick={handlePrint} className="bg-teal-700 text-white px-4 py-2 rounded shadow flex items-center gap-2 font-bold text-sm">
+                        <Printer size={16} /> প্রিন্ট
+                    </button>
                 </div>
 
-                {/* Certificate Paper Design */}
-                <div className="bg-gray-200 p-8 overflow-auto rounded-xl shadow-inner flex justify-center min-h-[600px] items-center print:p-0 print:bg-white print:shadow-none print:min-h-0 print:block">
+                <div className="bg-gray-300 p-4 md:p-8 overflow-auto rounded-xl shadow-inner flex justify-center min-h-[800px] items-start print:p-0 print:bg-white print:shadow-none print:items-start print:h-auto print:min-h-0">
                     <div 
                         ref={componentRef}
-                        className={`bg-white w-[210mm] min-h-[297mm] p-12 relative shadow-2xl mx-auto text-black print:shadow-none print:w-full print:mx-0 ${getThemeClasses()}`}
+                        className="bg-white w-[297mm] h-[210mm] relative shadow-2xl mx-auto text-black print:shadow-none print:w-full print:h-[210mm] print:landscape print:mx-0 p-[10mm] box-border landscape-paper overflow-hidden print-exact"
+                        style={{ fontFamily: "'Hind Siliguri', serif" }}
                     >
-                        {/* Ornamental Corners for 'ornamental' theme */}
-                        {theme === 'ornamental' && (
-                            <>
-                                <div className="absolute top-4 left-4 w-16 h-16 border-t-4 border-l-4 border-teal-800"></div>
-                                <div className="absolute top-4 right-4 w-16 h-16 border-t-4 border-r-4 border-teal-800"></div>
-                                <div className="absolute bottom-4 left-4 w-16 h-16 border-b-4 border-l-4 border-teal-800"></div>
-                                <div className="absolute bottom-4 right-4 w-16 h-16 border-b-4 border-r-4 border-teal-800"></div>
-                            </>
-                        )}
+                         {/* Watermark */}
+                         <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none print-exact">
+                             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Government_Seal_of_Bangladesh.svg/1200px-Government_Seal_of_Bangladesh.svg.png" 
+                                className="w-[400px] h-[400px]" alt="Watermark" />
+                         </div>
 
-                        {/* Header */}
-                        <div className="text-center space-y-3 mt-8">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Government_Seal_of_Bangladesh.svg/1200px-Government_Seal_of_Bangladesh.svg.png" alt="Govt Logo" className="h-24 mx-auto opacity-90 drop-shadow-sm" />
-                            <h1 className="text-3xl font-bold text-teal-900 tracking-wide">গণপ্রজাতন্ত্রী বাংলাদেশ সরকার</h1>
-                            <h2 className="text-2xl font-bold text-gray-800">{userSchool.name}</h2>
-                            <p className="text-gray-600 font-medium">উপজেলা: {userSchool.upazila}, জেলা: {userSchool.district}</p>
-                        </div>
+                         {/* Border */}
+                         <div className="absolute inset-2 border-[5px] border-double border-teal-900 pointer-events-none rounded-sm z-10 print-exact"></div>
+                         <div className="absolute inset-[8px] border border-teal-600/30 pointer-events-none rounded-sm z-10 print-exact"></div>
 
-                        {/* Title */}
-                        <div className="mt-12 mb-10 text-center">
-                            <span className={`${theme === 'modern' ? 'bg-teal-600 text-white' : 'border-2 border-teal-900 text-teal-900'} px-10 py-3 text-2xl font-bold rounded-full uppercase tracking-widest shadow-sm`}>
-                                প্রত্যয়নপত্র
-                            </span>
-                        </div>
-
-                        {/* Body */}
-                        <div className="space-y-8 text-xl leading-loose px-10 text-justify font-medium text-gray-800">
-                            <p>
-                                এই মর্মে প্রত্যয়ন করা যাচ্ছে যে,
-                                <span className="font-bold border-b-2 border-dotted border-gray-400 px-3 mx-1 text-black">{formData.name || '...................'}</span>,
-                                পিতা: <span className="font-bold border-b-2 border-dotted border-gray-400 px-3 mx-1 text-black">{formData.fatherName || '...................'}</span>,
-                                মাতা: <span className="font-bold border-b-2 border-dotted border-gray-400 px-3 mx-1 text-black">{formData.motherName || '...................'}</span>,
-                                সাং: <span className="font-bold border-b-2 border-dotted border-gray-400 px-3 mx-1 text-black">{formData.address || '...................'}</span>।
-                            </p>
-                            <p>
-                                সে এই বিদ্যালয়ের 
-                                <span className="font-bold border-b-2 border-dotted border-gray-400 px-3 mx-1 text-black">{formData.class || '.....'}</span> শ্রেণির একজন নিয়মিত ছাত্র/ছাত্রী।
-                                তার শ্রেণি রোল নং <span className="font-bold border-b-2 border-dotted border-gray-400 px-3 mx-1 text-black">{formData.roll || '.....'}</span>।
-                                জন্ম তারিখ: <span className="font-bold border-b-2 border-dotted border-gray-400 px-3 mx-1 text-black">{formData.dob || '.....'}</span>।
-                            </p>
+                         {/* Content Container - Width adjusted to be wider with less padding */}
+                         <div className="relative h-full px-8 py-8 z-20">
                             
-                            <div className="bg-gray-50 p-6 rounded-lg border border-gray-100 mt-6 print:border-gray-300">
-                                <p className="italic text-gray-700">
-                                    মন্তব্য: "{remarks || 'উজ্জ্বল ভবিষ্যৎ কামনা করছি।'}"
+                            {/* Header Layout Grid */}
+                            <div className="grid grid-cols-12 mb-2">
+                                {/* Left: Serial No */}
+                                <div className="col-span-3 pt-6">
+                                    <div className="text-sm font-bold text-gray-800">
+                                        ক্রমিক নং: <span className="font-mono text-base">{formData.serialNo ? toBn(formData.serialNo) : '................'}</span>
+                                    </div>
+                                </div>
+
+                                {/* Center: Govt Logo & Text */}
+                                <div className="col-span-6 text-center">
+                                    <div className="flex justify-center mb-1">
+                                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Government_Seal_of_Bangladesh.svg/1200px-Government_Seal_of_Bangladesh.svg.png" 
+                                            alt="Govt Logo" className="h-16 w-16 print-exact" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-teal-900 leading-tight print-exact">গণপ্রজাতন্ত্রী বাংলাদেশ সরকার</h3>
+                                    <h4 className="text-base font-bold leading-tight mt-1 text-gray-800">প্রাথমিক ও গণশিক্ষা মন্ত্রণালয়</h4>
+                                    <h4 className="text-base font-bold leading-tight text-gray-800">প্রাথমিক শিক্ষা অধিদপ্তর</h4>
+                                </div>
+
+                                {/* Right: Grading Table */}
+                                <div className="col-span-3 flex justify-end pt-2">
+                                    <div className="border border-green-800 text-[10px] w-48 text-center bg-white print-exact">
+                                        <div className="grid grid-cols-2 font-bold border-b border-green-800 bg-green-100 print-exact">
+                                            <div className="border-r border-green-800 p-1">শতকরা নম্বর</div>
+                                            <div className="p-1">শিখনের অর্জিত মাত্রা</div>
+                                        </div>
+                                        {[
+                                            { range: '৮০%-১০০%', grade: 'অতি উত্তম' },
+                                            { range: '৬৫%-৭৯%', grade: 'উত্তম' },
+                                            { range: '৪০%-৬৪%', grade: 'সন্তোষজনক' },
+                                            { range: '০%-৩৯%', grade: 'অগ্রগতি প্রয়োজন' }
+                                        ].map((row, i) => (
+                                            <div key={i} className="grid grid-cols-2 border-b border-green-800 last:border-b-0">
+                                                <div className="border-r border-green-800 p-0.5 font-mono">{row.range}</div>
+                                                <div className="p-0.5">{row.grade}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* School Name Section */}
+                            <div className="text-center mt-2 border-b-2 border-double border-gray-300 pb-4 mx-8">
+                                <h1 className="text-3xl font-extrabold text-gray-900 mb-1 tracking-wide">{userSchool.name}</h1>
+                                <p className="text-gray-700 font-medium text-lg">
+                                    উপজেলাঃ {userSchool.upazila}, জেলাঃ {userSchool.district}
+                                </p>
+                                <p className="text-sm text-gray-600 mt-1">স্থাপিতঃ ........... খ্রিঃ</p>
+                            </div>
+
+                            {/* Certificate Banner Title (Blue Arrow Shape) */}
+                            <div className="flex justify-center -mt-5 mb-8">
+                                <div className="bg-[#1e40af] text-white px-20 py-3 text-2xl font-bold shadow-lg relative flex items-center justify-center clip-arrow print-exact">
+                                    প্রত্যয়নপত্র
+                                </div>
+                            </div>
+
+                            {/* Body Text with dotted lines */}
+                            <div className="text-[20px] leading-[2.6] text-justify font-medium text-gray-900 mt-4 px-2">
+                                <p>
+                                    এই মর্মে প্রত্যয়ন করা যাচ্ছে যে,
+                                    <span className="font-bold border-b border-dotted border-gray-800 px-4 mx-2 min-w-[220px] inline-block text-center">{formData.name}</span>
+                                    পিতা: <span className="font-bold border-b border-dotted border-gray-800 px-4 mx-2 min-w-[220px] inline-block text-center">{formData.fatherName}</span>
+                                    মাতা: <span className="font-bold border-b border-dotted border-gray-800 px-4 mx-2 min-w-[220px] inline-block text-center">{formData.motherName}</span>
+                                    গ্রাম: <span className="font-bold border-b border-dotted border-gray-800 px-4 mx-2 min-w-[150px] inline-block text-center">{formData.address}</span>
+                                    ডাকঘর: <span className="font-bold border-b border-dotted border-gray-800 px-4 mx-2 min-w-[150px] inline-block text-center">{formData.postOffice}</span>
+                                    উপজেলা: <span className="font-bold border-b border-dotted border-gray-800 px-4 mx-2 min-w-[150px] inline-block text-center">{userSchool.upazila}</span>
+                                    জেলা: <span className="font-bold border-b border-dotted border-gray-800 px-4 mx-2 min-w-[150px] inline-block text-center">{userSchool.district}</span> ।
+                                </p>
+                                <p className="mt-2">
+                                    সে <span className="font-bold border-b border-dotted border-gray-800 px-2 mx-1 inline-block">{userSchool.name}</span>
+                                    সরকারি প্রাথমিক বিদ্যালয়ের <span className="font-bold border-b border-dotted border-gray-800 px-2 mx-1 inline-block min-w-[60px] text-center">{toBn(formData.examYear)}</span>
+                                    সনের বার্ষিক পরীক্ষায় <span className="font-bold border-b border-dotted border-gray-800 px-2 mx-1 inline-block min-w-[80px] text-center">{formData.class}</span> শ্রেণিতে 
+                                    রোল নং <span className="font-bold border-b border-dotted border-gray-800 px-2 mx-1 inline-block min-w-[60px] text-center">{toBn(formData.roll)}</span>
+                                    সহ অংশগ্রহণ করে কৃতিত্বের সাথে উত্তীর্ণ হয়েছে।
+                                </p>
+                                <p className="mt-2">
+                                    জন্ম সনদ অনুযায়ী তাঁর জন্ম তারিখঃ <span className="font-bold border-b border-dotted border-gray-800 px-4 mx-2 inline-block min-w-[120px] text-center">{formData.dob ? toBn(formData.dob) : ''}</span>
+                                    (কথায়: <span className="font-bold border-b border-dotted border-gray-800 px-2 mx-1 inline-block min-w-[300px]">{formData.dobWords}</span>) । 
+                                </p>
+                                <p className="mt-2">
+                                    আমার জানা মতে সে উত্তম চরিত্রের অধিকারী। আমি তার জীবনের সার্বিক উন্নতি ও মঙ্গল কামনা করছি।
                                 </p>
                             </div>
 
-                            <p className="mt-6">
-                            আমি তার সার্বিক উন্নতি ও মঙ্গল কামনা করছি।
-                            </p>
-                        </div>
-
-                        {/* Signature Area */}
-                        <div className="mt-24 flex justify-between px-10 items-end">
-                            <div className="text-center">
-                                <div className="w-48 border-t-2 border-gray-800 mb-2"></div>
-                                <p className="font-bold text-lg">শ্রেণি শিক্ষক</p>
+                            {/* Footer Signature */}
+                            <div className="absolute bottom-20 left-16 right-16 flex justify-between items-end">
+                                <div>
+                                    <p className="mb-8">তারিখঃ <span className="inline-block border-b border-dotted border-black w-40 text-center font-mono">{toBn(new Date().toLocaleDateString('bn-BD'))}</span></p>
+                                </div>
+                                <div className="text-center">
+                                    <div className="w-64 border-t border-dashed border-gray-800 mb-2"></div>
+                                    <p className="font-bold text-lg">প্রধান শিক্ষক</p>
+                                    <p className="text-base font-medium">{userSchool.name}</p>
+                                    <p className="text-sm">{userSchool.upazila}, {userSchool.district}</p>
+                                </div>
                             </div>
 
-                            {/* QR Code Verification */}
-                            <div className="flex flex-col items-center gap-1 opacity-80">
-                                <img src={qrCodeUrl} alt="Verification QR" className="w-24 h-24 border border-gray-200" />
-                                <span className="text-[10px] uppercase font-mono tracking-widest text-gray-500">Scan to Verify</span>
-                            </div>
-
-                            <div className="text-center">
-                                <div className="w-48 border-t-2 border-gray-800 mb-2"></div>
-                                <p className="font-bold text-lg">প্রধান শিক্ষক</p>
-                                <p className="text-sm font-semibold text-gray-600">{userSchool.name}</p>
-                            </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="absolute bottom-10 left-0 right-0 text-center text-sm text-gray-400 font-medium">
-                            ইস্যুর তারিখ: {new Date().toLocaleDateString('bn-BD')} | যাচাই কোড: {Math.random().toString(36).substring(7).toUpperCase()}
-                        </div>
+                         </div>
                     </div>
                 </div>
+                <style>{`
+                    .clip-arrow {
+                        clip-path: polygon(0% 0%, 100% 0%, 95% 50%, 100% 100%, 0% 100%, 5% 50%);
+                        padding-left: 3rem;
+                        padding-right: 3rem;
+                    }
+                    @media print {
+                        @page { 
+                            size: landscape;
+                            margin: 0;
+                        }
+                        .print-exact {
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        .landscape-paper {
+                            width: 100% !important;
+                            height: 100vh !important;
+                            box-shadow: none !important;
+                            margin: 0 !important;
+                            border: none !important;
+                        }
+                        .print-hidden {
+                            display: none !important;
+                        }
+                    }
+                `}</style>
             </div>
             </div>
         )}

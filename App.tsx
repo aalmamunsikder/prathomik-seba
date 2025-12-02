@@ -9,7 +9,7 @@ import { Register } from './pages/Register';
 import { CertificateGen } from './pages/CertificateGen';
 import { Subscription } from './pages/Subscription';
 import { TeacherManagement } from './pages/TeacherManagement';
-import { Lock, School as SchoolIcon } from 'lucide-react';
+import { Lock, School as SchoolIcon, AlertTriangle } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -19,22 +19,29 @@ export default function App() {
   // Login State
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const u = await MockService.login(email);
-    setLoading(false);
-    if (u) {
-      setUser(u);
-    } else {
-      alert('User not found. Try admin@dpe.gov.bd or headmaster@model.com');
+    setLoginError('');
+    try {
+      const u = await MockService.login(email);
+      if (u) {
+        setUser(u);
+      }
+    } catch (err: any) {
+      setLoginError(err.message || 'User not found. Try admin@dpe.gov.bd');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleLogout = () => {
     setUser(null);
     setPage('dashboard');
+    setEmail('');
+    setLoginError('');
   };
 
   // Helper to fetch school data for school admin
@@ -64,6 +71,13 @@ export default function App() {
           </div>
           
           <form onSubmit={handleLogin} className="space-y-6">
+            {loginError && (
+              <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm flex items-start gap-2">
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                <span>{loginError}</span>
+              </div>
+            )}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">ইমেইল</label>
               <input 

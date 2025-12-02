@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { DIVISIONS, MOCK_DISTRICTS, School } from '../types';
 import { MockService } from '../services/mockData';
-import { School as SchoolIcon, ArrowRight, Loader } from 'lucide-react';
+import { School as SchoolIcon, ArrowRight, Loader, Mail, CheckCircle } from 'lucide-react';
 
 interface Props {
   onSuccess: () => void;
@@ -11,6 +12,9 @@ interface Props {
 export const Register: React.FC<Props> = ({ onSuccess, onSwitchToLogin }) => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: '', eiin: '', division: '', district: '', upazila: '', 
     email: '', phone: '', headMasterName: ''
@@ -21,8 +25,7 @@ export const Register: React.FC<Props> = ({ onSuccess, onSwitchToLogin }) => {
     setLoading(true);
     try {
       await MockService.registerSchool(formData);
-      alert('রেজিস্ট্রেশন সফল হয়েছে! অ্যাডমিন অনুমোদনের পর আপনি লগইন করতে পারবেন।');
-      onSuccess();
+      setEmailSent(true); // Move to email verification UI
     } catch (err) {
       alert('Error registering');
     } finally {
@@ -30,7 +33,43 @@ export const Register: React.FC<Props> = ({ onSuccess, onSwitchToLogin }) => {
     }
   };
 
+  const handleSimulateVerification = async () => {
+    setVerifying(true);
+    await MockService.verifyEmail(formData.email);
+    setVerifying(false);
+    alert('ইমেইল ভেরিফিকেশন সফল হয়েছে! এখন লগইন করতে পারবেন।');
+    onSuccess(); // Back to Login
+  };
+
   const districts = formData.division ? MOCK_DISTRICTS[formData.division] || [] : [];
+
+  if (emailSent) {
+    return (
+      <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-teal-100 text-center animate-scale-in">
+          <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Mail className="w-10 h-10 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">ইমেইল ভেরিফিকেশন প্রয়োজন</h2>
+          <p className="text-gray-600 mb-6">
+            আমরা <strong>{formData.email}</strong> ঠিকানায় একটি ভেরিফিকেশন লিংক পাঠিয়েছি। আপনার অ্যাকাউন্ট চালু করতে অনুগ্রহ করে লিংকে ক্লিক করুন।
+          </p>
+          
+          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6 text-sm text-yellow-800 text-left">
+            <strong>Demo Mode:</strong> যেহেতু এটি একটি ডেমো অ্যাপ, আপনি নিচের বাটনে ক্লিক করে ইমেইল ভেরিফিকেশন সম্পন্ন করতে পারেন।
+          </div>
+
+          <button 
+            onClick={handleSimulateVerification} 
+            disabled={verifying}
+            className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2"
+          >
+            {verifying ? <Loader className="animate-spin" /> : <><CheckCircle size={18} /> ভেরিফাই করুন (Demo)</>}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4 font-sans">

@@ -25,6 +25,7 @@ export interface User {
   role: Role;
   schoolId?: string; // If null, super admin
   phone?: string;
+  emailVerified?: boolean; // New field for verification status
 }
 
 export interface Teacher extends User {

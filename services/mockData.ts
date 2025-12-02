@@ -41,7 +41,8 @@ let users: User[] = [
     name: 'Central Admin',
     email: 'admin@dpe.gov.bd',
     role: Role.SUPER_ADMIN,
-    phone: '01555555555'
+    phone: '01555555555',
+    emailVerified: true
   },
   {
     id: 'u_hm_1',
@@ -49,7 +50,8 @@ let users: User[] = [
     email: 'headmaster@model.com',
     role: Role.SCHOOL_ADMIN,
     schoolId: 'sch_1',
-    phone: '01700000000'
+    phone: '01700000000',
+    emailVerified: true
   }
 ];
 
@@ -62,7 +64,8 @@ let teachers: Teacher[] = [
         schoolId: 'sch_1',
         phone: '01711111111',
         subject: 'Bangla',
-        designation: 'Assistant Teacher'
+        designation: 'Assistant Teacher',
+        emailVerified: true
     }
 ];
 
@@ -83,9 +86,19 @@ let auditLogs: AuditLog[] = [];
 
 // Service Methods
 export const MockService = {
-  login: async (email: string): Promise<User | null> => {
+  login: async (email: string): Promise<User> => {
     await new Promise(r => setTimeout(r, 800)); // Simulate network
-    return users.find(u => u.email === email) || null;
+    const user = users.find(u => u.email === email);
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (user.role === Role.SCHOOL_ADMIN && !user.emailVerified) {
+      throw new Error('Email not verified. Please check your inbox.');
+    }
+
+    return user;
   },
 
   registerSchool: async (schoolData: Omit<School, 'id' | 'status' | 'subscriptionPlan' | 'subscriptionExpiry' | 'balance'>): Promise<School> => {
@@ -107,12 +120,25 @@ export const MockService = {
       email: schoolData.email,
       role: Role.SCHOOL_ADMIN,
       schoolId: newSchool.id,
-      phone: schoolData.phone
+      phone: schoolData.phone,
+      emailVerified: false // Needs verification
     };
     users.push(newUser);
     
-    MockService.logAction(newUser.id, 'REGISTRATION', `School ${newSchool.name} registered`);
+    console.log(`[Mock Email Service] Sending verification email to ${newUser.email}...`);
+    MockService.logAction(newUser.id, 'REGISTRATION', `School ${newSchool.name} registered. Verification pending.`);
     return newSchool;
+  },
+
+  verifyEmail: async (email: string): Promise<boolean> => {
+    await new Promise(r => setTimeout(r, 1000));
+    const user = users.find(u => u.email === email);
+    if (user) {
+      user.emailVerified = true;
+      MockService.logAction(user.id, 'EMAIL_VERIFIED', `User verified email.`);
+      return true;
+    }
+    return false;
   },
 
   getSchools: async (): Promise<School[]> => {
@@ -163,6 +189,47 @@ export const MockService = {
     return certificates.filter(c => c.schoolId === schoolId);
   },
   
+  verifyQrCode: async (code: string): Promise<{ valid: boolean, message: string, details?: any }> => {
+      // Expected Format: VERIFY-EIIN-ROLL
+      const parts = code.split('-');
+      if (parts.length < 3 || parts[0] !== 'VERIFY') {
+          return { valid: false, message: 'Invalid QR Code Format' };
+      }
+      
+      const eiin = parts[1];
+      const roll = parts[2];
+      
+      const school = schools.find(s => s.eiin === eiin);
+      if (!school) {
+          return { valid: false, message: `School not found with EIIN: ${eiin}` };
+      }
+      
+      const cert = certificates.find(c => c.schoolId === school.id && c.studentId === roll);
+      if (!cert) {
+          return { valid: false, message: 'No valid certificate found for this student ID.' };
+      }
+      
+      let studentData: any = {};
+      try {
+          studentData = JSON.parse(cert.content);
+      } catch (e) {}
+
+      return {
+          valid: true,
+          message: 'Certificate is Valid',
+          details: {
+              schoolName: school.name,
+              eiin: school.eiin,
+              studentName: studentData.name,
+              fatherName: studentData.fatherName,
+              class: studentData.class,
+              roll: studentData.roll,
+              issueDate: cert.issueDate,
+              remarks: cert.remarks
+          }
+      };
+  },
+  
   // Teacher Management
   getTeachers: async (schoolId: string): Promise<Teacher[]> => {
       return teachers.filter(t => t.schoolId === schoolId);
@@ -173,6 +240,7 @@ export const MockService = {
           ...teacherData,
           id: `t_${Date.now()}`,
           role: Role.TEACHER,
+          emailVerified: true // Teachers added by admin are pre-verified for demo
       } as Teacher;
       teachers.push(newTeacher);
       // Also add to users to allow login

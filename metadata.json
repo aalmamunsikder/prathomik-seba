@@ -1,5 +1,7 @@
 {
   "name": "Prathomik Seba (প্রাথমিক সেবা)",
   "description": "Centralized Web Portal for Government Primary Schools in Bangladesh for Registration, Subscription, and Digital Certificate Generation.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ]
 }
