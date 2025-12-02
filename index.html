@@ -1,60 +1,38 @@
 <!DOCTYPE html>
 <html lang="bn">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/png" href="https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Government_Seal_of_Bangladesh.svg/96px-Government_Seal_of_Bangladesh.svg.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0f766e" />
-    <meta
-      name="description"
-      content="Government Primary School Portal"
-    />
-    <title>Prathomik Seba | Primary School Portal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              primary: {
-                50: '#f0fdfa',
-                100: '#ccfbf1',
-                200: '#99f6e4',
-                300: '#5eead4',
-                400: '#2dd4bf',
-                500: '#14b8a6',
-                600: '#0d9488',
-                700: '#0f766e',
-                800: '#115e59',
-                900: '#134e4a',
-              }
-            },
-            fontFamily: {
-              sans: ['Hind Siliguri', 'Kalpurush', 'SolaimanLipi', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-            }
-          }
-        }
+
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" type="image/png"
+    href="https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Government_Seal_of_Bangladesh.svg/96px-Government_Seal_of_Bangladesh.svg.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0f766e" />
+  <meta name="description" content="Government Primary School Portal" />
+  <title>Prathomik Seba | Primary School Portal</title>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Hind Siliguri', sans-serif;
+    }
+
+    @media print {
+      .no-print {
+        display: none !important;
       }
-    </script>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap');
-      body {
-        font-family: 'Hind Siliguri', sans-serif;
+
+      .print-only {
+        display: block !important;
       }
-      @media print {
-        .no-print {
-          display: none !important;
-        }
-        .print-only {
-          display: block !important;
-        }
-        @page {
-          margin: 0.5cm;
-        }
+
+      @page {
+        margin: 0.5cm;
       }
-    </style>
-    <!-- QR Code Scanner Library -->
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    }
+  </style>
+  <!-- QR Code Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <script type="importmap">
 {
   "imports": {
@@ -69,7 +47,9 @@
 }
 </script>
 </head>
-  <body class="bg-gray-50 text-gray-900 font-sans">
-    <div id="root"></div>
-  </body>
+
+<body class="bg-gray-50 text-gray-900 font-sans">
+  <div id="root"></div>
+</body>
+
 </html>
